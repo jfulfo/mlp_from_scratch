@@ -34,6 +34,18 @@ float tanh_prime(float x) {
     return 1 - tanh(x) * tanh(x);
 }
 
+void sigmoid_vector(float *input, float *output, size_t len) {
+    for (int i = 0; i < len; i++) {
+        output[i] = sigmoid(input[i]);
+    }
+}
+
+void sigmoid_prime_vector(float *input, float *output, size_t len) {
+    for (int i = 0; i < len; i++) {
+        output[i] = sigmoid_prime(input[i]);
+    }
+}
+
 void relu_vector(float *input, float *output, size_t len) {
     for (int i = 0; i < len; i++) {
         output[i] = relu(input[i]);

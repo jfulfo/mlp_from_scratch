@@ -48,28 +48,6 @@ void view_mnist(float ***input_ptr, float ***target_ptr, int num_samples) {
     }
 }
 
-void debug_forward(MLP *mlp, float **inputs, float **targets, int num_samples, int batch_size) {
-    int output_size = mlp->layers[mlp->num_layers-1]->num_neurons;
-    float **batch_inputs = malloc(batch_size * sizeof(float *));
-    float **batch_targets = malloc(batch_size * sizeof(float *));
-    for (int j = 0; j < batch_size; j++) {
-        batch_inputs[j] = malloc(mlp->input_size * sizeof(float));
-        batch_targets[j] = malloc(output_size * sizeof(float));
-        for (int k = 0; k < mlp->input_size; k++) {
-            batch_inputs[j][k] = inputs[j][k];
-        }
-        for (int k = 0; k < output_size; k++) {
-            batch_targets[j][k] = targets[j][k];
-        }
-    }
-
-    float ***activations = batch_forward(mlp, batch_inputs, batch_size);
-    for (int i = 0; i < mlp->num_layers; i++) {
-        printf("Layer %d activations:\n", i);
-        print_matrix(activations[i+1], batch_size, mlp->layers[i]->num_neurons);
-    }
-}
-
 int main() {
 
     float **input_ptr = malloc(TRAINING_SAMPLES * sizeof(float *));
@@ -87,13 +65,11 @@ int main() {
     void (*activations[])(float*, float*, size_t) = {relu_vector, relu_vector, softmax};
     void (*activation_primes[])(float*, float*, size_t) = {relu_prime_vector, relu_prime_vector, softmax_prime};
 
-    MLP *mlp = mlp_init(num_layers, num_neurons, activations, activation_primes, cross_entropy, softmax_ce_loss_prime, 0.1, 784);
+    MLP *mlp = mlp_init(num_layers, num_neurons, activations, activation_primes, cross_entropy, softmax_ce_loss_prime, 0.01, 784);
 
     printf("Training...\n");
-    int num_epochs = 2;
+    int num_epochs = 10;
     train(mlp, input_ptr, target_ptr, num_epochs, TRAINING_SAMPLES, 32);
-    debug_forward(mlp, input_ptr, target_ptr, 32, 32);
-    //print_mlp(mlp);
 
     free_matrix(input_ptr, TRAINING_SAMPLES);
     free_matrix(target_ptr, TRAINING_SAMPLES);

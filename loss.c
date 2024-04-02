@@ -14,9 +14,9 @@ float mse(float y, float y_hat) {
 
 float cross_entropy(float y, float y_hat) {
     if (y_hat == 0) {
-        y_hat = 0.0000001;
+        y_hat = 0.00001;
     } else if (y_hat == 1) {
-        y_hat = 0.9999999;
+        y_hat = 0.99999;
     }
 
     float loss = -1.0 * (y * log(y_hat) + (1.0 - y) * log(1.0 - y_hat));

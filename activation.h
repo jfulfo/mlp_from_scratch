@@ -9,6 +9,8 @@ float leaky_relu(float x);
 float leaky_relu_prime(float x);
 float tanh_float(float x);
 float tanh_prime(float x);
+void sigmoid_vector(float *input, float *output, size_t len);
+void sigmoid_prime_vector(float *input, float *output, size_t len);
 void relu_vector(float *input, float *output, size_t len);
 void relu_prime_vector(float *input, float *output, size_t len);
 void softmax(float *input, float *output, size_t len);

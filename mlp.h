@@ -24,7 +24,7 @@ MLP *mlp_init(int num_layers, int *num_neurons, void (*activations[])(float*, fl
 void mlp_free(MLP *mlp);
 
 float **batch_output(MLP *mlp, float **input, int batch_size);
-float ***batch_forward(MLP *mlp, float **inputs, int batch_size);
+float ****batch_forward(MLP *mlp, float **inputs, int batch_size);
 void calculate_gradient_and_update(MLP *mlp, float **deltas, float **prev_activations, int batch_size, int layer_idx);
 void batch_backward(MLP *mlp, float **inputs, float **targets, int batch_size);
 
@@ -32,3 +32,4 @@ void train(MLP *mlp, float **inputs, float **targets, int num_epochs, int num_sa
 void validate(MLP *mlp, float **inputs, float **targets, int num_samples, int batch_size);
 void print_progress(int current_step, int total_steps);
 void print_mlp(MLP *mlp);
+void check_nan(MLP *mlp);
