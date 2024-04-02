@@ -62,7 +62,7 @@ void free_matrix(float **M, int m) {
 void print_matrix(float **M, int m, int n) {
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
-            printf("%f ", M[i][j]);
+            printf("i = %d, j = %d, M[i][j] = %f\n", i, j, M[i][j]);
         }
         printf("\n");
     }

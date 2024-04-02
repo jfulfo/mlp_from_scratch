@@ -12,8 +12,8 @@ from scratch, in C
 #include"gemm.h"
 
 
-MLP *mlp_init(int num_layers, int *num_neurons, float (*activation[])(float), float (*activation_prime[])(float), 
-            float (*loss)(float, float), float learning_rate, int input_size, int output_size) {
+MLP *mlp_init(int num_layers, int *num_neurons, void (*activations[])(float*, float*, size_t), void (*activations_prime[])(float*, float*, size_t),
+            float (*loss)(float, float), void (*loss_prime)(float**, float**, float**, int, int), float learning_rate, int input_size) {
     srand(time(NULL));
     MLP *mlp = malloc(sizeof(MLP));
     mlp->layers = malloc(num_layers * sizeof(Layer));   
@@ -23,8 +23,8 @@ MLP *mlp_init(int num_layers, int *num_neurons, float (*activation[])(float), fl
         layer->prev_num_neurons = i == 0 ? input_size : num_neurons[i - 1];
         layer->weights = malloc(layer->num_neurons * sizeof(float *));
         layer->biases = malloc(layer->num_neurons * sizeof(float));
-        layer->activation = activation[i];
-        layer->activation_prime = activation_prime[i];
+        layer->activation = activations[i];
+        layer->activation_prime = activations_prime[i];
         for (int j = 0; j < num_neurons[i]; j++) {
             layer->weights[j] = malloc(layer->prev_num_neurons * sizeof(float));
             for (int k = 0; k < layer->prev_num_neurons; k++) {
@@ -36,9 +36,9 @@ MLP *mlp_init(int num_layers, int *num_neurons, float (*activation[])(float), fl
     }
     mlp->num_layers = num_layers;
     mlp->loss = loss;
+    mlp->loss_prime = loss_prime;
     mlp->learning_rate = learning_rate;
     mlp->input_size = input_size;
-    mlp->output_size = output_size;
     return mlp;
 }
 
@@ -53,48 +53,33 @@ void mlp_free(MLP *mlp) {
     free(mlp);
 }
 
-float **batch_output(MLP *mlp, float **input, int batch_size) {
-    return batch_forward(mlp, input, batch_size)[mlp->num_layers];
-}
-
 float ***batch_forward(MLP *mlp, float **inputs, int batch_size) {
-    float ***activations = malloc((mlp->num_layers + 2) * sizeof(float **));
-    for (int i = 0; i <= mlp->num_layers; i++) {
-        activations[i] = allocate_matrix((i == 0) ? batch_size : mlp->layers[i-1]->num_neurons, (i == 0) ? mlp->input_size : mlp->layers[i-1]->num_neurons);
-    }
+    float ***activations = malloc((mlp->num_layers + 1) * sizeof(float **));
+    activations[0] = allocate_matrix(batch_size, mlp->input_size);
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < mlp->input_size; j++) {
             activations[0][i][j] = inputs[i][j];
         }
     }
-    int activation_size = mlp->input_size;
+    for (int i = 1; i <= mlp->num_layers; i++) {
+        activations[i] = allocate_matrix(batch_size, mlp->layers[i-1]->num_neurons);
+    }
+
     for (int i = 0; i < mlp->num_layers; i++) {
         Layer *layer = mlp->layers[i];
-        float **output = gemm_add(activations[i], layer->weights, batch_size, activation_size, layer->num_neurons, layer->biases); 
-        if (layer->activation == softmax) {
-            activations[i + 1] = matrix_softmax_activation(output, batch_size, layer->num_neurons);
-        }
-        else {
-            activations[i + 1] = matrix_activation(output, batch_size, layer->num_neurons, mlp->layers[i]->activation);
-        }
-        activation_size = layer->num_neurons;
-    }
-    // activate output layer
-    for (int i = 0; i < batch_size; i++) {
-        softmax(activations[mlp->num_layers][i], activations[mlp->num_layers][i], mlp->output_size);
-    }
-    for (int i = 0; i <= mlp->num_layers; i++) {
-        print_matrix(activations[i], batch_size, (i == 0) ? mlp->input_size : mlp->layers[i-1]->num_neurons);
+        float **output = gemm_add(activations[i], layer->weights, batch_size, layer->prev_num_neurons, layer->num_neurons, layer->biases); 
+        activations[i + 1] = matrix_activation(output, batch_size, layer->num_neurons, mlp->layers[i]->activation);
     }
     return activations;
 }
 
 void calculate_gradient_and_update(MLP *mlp, float **deltas, float **prev_activations, int batch_size, int layer_idx) {
     int num_neurons = mlp->layers[layer_idx]->num_neurons;
-    int prev_num_neurons = layer_idx == 0 ? mlp->input_size : mlp->layers[layer_idx - 1]->num_neurons;
+    int prev_num_neurons = mlp->layers[layer_idx]->prev_num_neurons;
 
     float **prev_activations_T = transpose(prev_activations, batch_size, prev_num_neurons);
     float **grad_weights = gemm(prev_activations_T, deltas, num_neurons, prev_num_neurons, batch_size);
+    free_matrix(prev_activations_T, prev_num_neurons);
 
     float *grad_biases = malloc(num_neurons * sizeof(float));
     for (int i = 0; i < num_neurons; i++) {
@@ -124,23 +109,14 @@ void batch_backward(MLP *mlp, float **inputs, float **targets, int batch_size) {
 
         float **new_deltas = allocate_matrix(batch_size, num_neurons);
         if (layer_idx == mlp->num_layers - 1) {
-            for (int i = 0; i < batch_size; i++) {
-                for (int j = 0; j < num_neurons; j++) {
-                    new_deltas[i][j] = mlp->loss(activations[layer_idx][i][j], targets[i][j]) * mlp->layers[layer_idx]->activation_prime(activations[layer_idx][i][j]);
-                }
-            }
+            mlp->loss_prime(activations[mlp->num_layers], targets, new_deltas, batch_size, num_neurons);
         } else {
-            for (int i = 0; i < batch_size; i++) {
-                for (int j = 0; j < num_neurons; j++) {
-                    float sum = 0;
-                    for (int k = 0; k < mlp->layers[layer_idx + 1]->num_neurons; k++) {
-                        sum += deltas[i][k] * mlp->layers[layer_idx + 1]->weights[k][j];
-                    }
-                    new_deltas[i][j] = sum * mlp->layers[layer_idx]->activation_prime(activations[layer_idx][i][j]);
-                }
-            }
-        }
+            float **weights_T = transpose(layer->weights, num_neurons, layer->prev_num_neurons);
+            float **propagated_deltas = gemm(new_deltas, weights_T, batch_size, layer->prev_num_neurons, num_neurons);
+            new_deltas = matrix_activation(propagated_deltas, batch_size, num_neurons, layer->activation_prime);
+            free_matrix(weights_T, num_neurons);
 
+        }
         if (deltas != NULL) free_matrix(deltas, batch_size);
         deltas = new_deltas;
 
@@ -148,7 +124,6 @@ void batch_backward(MLP *mlp, float **inputs, float **targets, int batch_size) {
         calculate_gradient_and_update(mlp, deltas, prev_activations, batch_size, layer_idx);
     }
 
-    // free activations
     for (int i = 0; i <= mlp->num_layers; i++) {
         free_matrix(activations[i], batch_size);
     }
@@ -157,60 +132,102 @@ void batch_backward(MLP *mlp, float **inputs, float **targets, int batch_size) {
 }
 
 void train(MLP *mlp, float **inputs, float **targets, int num_epochs, int num_samples, int batch_size) {
-    float loss;
     int num_batches = num_samples / batch_size;
+    int output_size = mlp->layers[mlp->num_layers-1]->num_neurons;
     for (int epoch = 0; epoch < num_epochs; epoch++) {
-        printf("Epoch %d\n", epoch+1);
+        printf("\nEpoch %d\n", epoch+1);
+        for (int i = 0; i < num_batches; i++) {
+            print_progress(i, num_batches);
+            float **batch_inputs = malloc(batch_size * sizeof(float *));
+            float **batch_targets = malloc(batch_size * sizeof(float *));
+            for (int j = 0; j < batch_size; j++) {
+                batch_inputs[j] = malloc(mlp->input_size * sizeof(float));
+                batch_targets[j] = malloc(output_size * sizeof(float));
+                for (int k = 0; k < mlp->input_size; k++) {
+                    batch_inputs[j][k] = inputs[i * batch_size + j][k];
+                }
+                for (int k = 0; k < output_size; k++) {
+                    batch_targets[j][k] = targets[i * batch_size + j][k];
+                }
+            }
+            batch_backward(mlp, batch_inputs, batch_targets, batch_size); 
+            mlp->learning_rate *= 0.99;
+            free_matrix(batch_inputs, batch_size);
+            free_matrix(batch_targets, batch_size);
+        }
+        print_progress(num_batches, num_batches);
+        printf("\n");
+        validate(mlp, inputs, targets, num_samples, batch_size);
+    }
+}
+
+void validate(MLP *mlp, float **inputs, float **targets, int num_samples, int batch_size) {
+    float loss = 0;
+    int correct = 0;
+    int num_batches = num_samples / batch_size;
+    int output_size = mlp->layers[mlp->num_layers-1]->num_neurons;
+    for (int i = 0; i < num_batches; i++) {
         float **batch_inputs = malloc(batch_size * sizeof(float *));
         float **batch_targets = malloc(batch_size * sizeof(float *));
-        for (int i = 0; i < batch_size; i++) {
-            batch_inputs[i] = inputs[i];
-            batch_targets[i] = targets[i];
-        }
-        batch_backward(mlp, batch_inputs, batch_targets, batch_size);
-        free(batch_inputs);
-        free(batch_targets);
-        loss = validate(mlp, inputs, targets, num_samples);
-    }
-}
-
-float validate(MLP *mlp, float **inputs, float **targets, int num_samples) {
-    float **outputs = batch_output(mlp, inputs, num_samples);
-    float loss = 0;
-    for (int i = 0; i < num_samples; i++) {
-        for (int j = 0; j < mlp->output_size; j++) {
-            loss += mlp->loss(outputs[i][j], targets[i][j]);
-        }
-    }
-    printf("Loss: %f\n", loss / (float)num_samples);
-    printf("Accuracy: %f\n", accuracy(mlp, inputs, targets, num_samples));
-    /*
-    for (int i = 0; i < num_samples; i++) {
-        for (int j = 0; j < mlp->output_size; j++) {
-            printf("Target: %f, Output: %f\n", targets[i][j], outputs[i][j]);
-        }
-    }
-    */
-    free_matrix(outputs, num_samples);
-    return loss;
-}
-
-float accuracy(MLP *mlp, float **inputs, float **targets, int num_samples) {
-    float **outputs = batch_output(mlp, inputs, num_samples);
-    int correct = 0;
-    for (int i = 0; i < num_samples; i++) {
-        int max_idx = 0;
-        for (int j = 1; j < mlp->output_size; j++) {
-            if (outputs[i][j] > outputs[i][max_idx]) {
-                max_idx = j;
+        for (int j = 0; j < batch_size; j++) {
+            batch_inputs[j] = malloc(mlp->input_size * sizeof(float));
+            batch_targets[j] = malloc(output_size * sizeof(float));
+            for (int k = 0; k < mlp->input_size; k++) {
+                batch_inputs[j][k] = inputs[i * batch_size + j][k];
+            }
+            for (int k = 0; k < output_size; k++) {
+                batch_targets[j][k] = targets[i * batch_size + j][k];
             }
         }
-        if (targets[i][max_idx] == 1) {
-            correct++;
+
+        float ***activations = batch_forward(mlp, batch_inputs, batch_size);
+        float **outputs = activations[mlp->num_layers];
+        for (int j = 0; j < batch_size; j++) {
+            for (int k = 0; k < output_size; k++) {
+                loss += mlp->loss(outputs[j][k], batch_targets[j][k]);
+            }
         }
+        for (int j = 0; j < batch_size; j++) {
+            float max_val = outputs[j][0];
+            int max_idx = 0;
+            for (int k = 1; k < output_size; k++) {
+                if (outputs[j][k] > max_val) {
+                    max_val = outputs[j][k];
+                    max_idx = k;
+                }
+            }
+            for (int k = 0; k < output_size; k++) {
+                if (k == max_idx && batch_targets[j][k] == 1.0) {
+                    correct++;
+                    break;
+                }
+            }
+        }
+        
+        free_matrix(batch_inputs, batch_size);
+        free_matrix(batch_targets, batch_size);
+        for (int j = 0; j <= mlp->num_layers; j++) {
+            free_matrix(activations[j], batch_size);
+        }
+        free(activations);
     }
-    free_matrix(outputs, num_samples);
-    return (float)correct / (float)num_samples;
+
+    printf("Loss: %f\n", loss / (float)num_samples);
+    printf("Accuracy: %f\n", (float)correct / (float)num_samples);
+}
+
+void print_progress(int current_step, int total_steps) {
+    int bar_width = 100;
+    float progress = (float)current_step / total_steps;
+    int pos = bar_width * progress;
+
+    printf("\rEpoch progress: [");
+    for (int i = 0; i < bar_width; ++i) {
+        if (i < pos) printf("#");
+        else printf(" ");
+    }
+    printf("] %d%%", (int)(progress * 100));
+    fflush(stdout);
 }
 
 void print_mlp(MLP *mlp) {

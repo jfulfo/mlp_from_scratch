@@ -34,32 +34,47 @@ float tanh_prime(float x) {
     return 1 - tanh(x) * tanh(x);
 }
 
-void softmax(float *x, float *result, int n) {
-    float sum = 0;
-    for (int i = 0; i < n; i++) {
-        result[i] = exp(x[i]);
-        sum += result[i];    
-    }
-    for (int i = 0; i < n; i++) {
-        result[i] /= sum;
+void relu_vector(float *input, float *output, size_t len) {
+    for (int i = 0; i < len; i++) {
+        output[i] = relu(input[i]);
     }
 }
 
-float **matrix_softmax_activation(float **M, int n, int m) {
-    for (int i = 0; i < n; i++) {
-        softmax(M[i], M[i], m);
+void relu_prime_vector(float *input, float *output, size_t len) {
+    for (int i = 0; i < len; i++) {
+        output[i] = relu_prime(input[i]);
     }
-    return M;
 }
 
-float **matrix_activation(float **M, int n, int m, float (*activation)(float)) {
-    if (activation == softmax) {
-        return matrix_softmax_activation(M, n, m);
-    }
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < m; j++) {
-            M[i][j] = activation(M[i][j]);
+void softmax(float *input, float *output, size_t len) {
+    float max = input[0];
+    float sum = 0.0;
+
+    for (int i = 1; i < len; ++i) {
+        if (input[i] > max) {
+            max = input[i];
         }
+    }
+
+    for (int i = 0; i < len; ++i) {
+        output[i] = exp(input[i] - max);
+        sum += output[i];
+    }
+    for (int i = 0; i < len; ++i) {
+        output[i] /= sum;
+    }
+}
+
+void softmax_prime(float *input, float *output, size_t len) {
+    for (int i = 0; i < len; i++) {
+        output[i] = input[i] * (1 - input[i]);
+    }
+}
+
+
+float **matrix_activation(float **M, int n, int m, void (*activation)(float*, float*, size_t)) {
+    for (int i = 0; i < n; i++) {
+        activation(M[i], M[i], m); 
     }
     return M;
 }
