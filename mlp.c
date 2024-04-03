@@ -55,35 +55,13 @@ void mlp_free(MLP *mlp) {
     free(mlp);
 }
 
-/*
-float ****batch_forward(MLP *mlp, float **inputs, int batch_size) {
-    float ***activations = malloc((mlp->num_layers + 1) * sizeof(float **));
-    activations[0] = allocate_matrix(batch_size, mlp->input_size);
-    for (int i = 0; i < batch_size; i++) {
-        for (int j = 0; j < mlp->input_size; j++) {
-            activations[0][i][j] = inputs[i][j];
-        }
-    }
-    for (int i = 1; i <= mlp->num_layers; i++) {
-        activations[i] = allocate_matrix(batch_size, mlp->layers[i-1]->num_neurons);
-    }
-
-    for (int i = 0; i < mlp->num_layers; i++) {
-        Layer *layer = mlp->layers[i];
-        float **output = gemm_add(activations[i], layer->weights, batch_size, layer->prev_num_neurons, layer->num_neurons, layer->biases); 
-        activations[i + 1] = matrix_activation(output, batch_size, layer->num_neurons, mlp->layers[i]->activation);
-    }
-    return activations;
-}
-*/
-
 float ****batch_forward(MLP *mlp, float **inputs, int batch_size) {
     float ****activations = malloc(2 * sizeof(float ***));
-    activations[0] = malloc((mlp->num_layers + 1) * sizeof(float **)); // For pre-activation
-    activations[1] = malloc((mlp->num_layers + 1) * sizeof(float **)); // For post-activation
+    activations[0] = malloc((mlp->num_layers + 1) * sizeof(float **));
+    activations[1] = malloc((mlp->num_layers + 1) * sizeof(float **));
 
-    activations[0][0] = allocate_matrix(batch_size, mlp->input_size); // just so we can free it later
-    activations[1][0] = allocate_matrix(batch_size, mlp->input_size); // Input layer only needs post-activation
+    activations[0][0] = allocate_matrix(batch_size, mlp->input_size);
+    activations[1][0] = allocate_matrix(batch_size, mlp->input_size);
     for (int i = 0; i < batch_size; i++) {
         for (int j = 0; j < mlp->input_size; j++) {
             activations[1][0][i][j] = inputs[i][j];
@@ -92,16 +70,16 @@ float ****batch_forward(MLP *mlp, float **inputs, int batch_size) {
 
     for (int i = 0; i < mlp->num_layers; i++) {
         Layer *layer = mlp->layers[i];
-        activations[0][i+1] = allocate_matrix(batch_size, layer->num_neurons); // Pre-activation
-        activations[1][i+1] = allocate_matrix(batch_size, layer->num_neurons); // Post-activation
+        activations[0][i+1] = allocate_matrix(batch_size, layer->num_neurons);
+        activations[1][i+1] = allocate_matrix(batch_size, layer->num_neurons);
 
         float **pre_activation = gemm_add(activations[1][i], layer->weights, batch_size, layer->prev_num_neurons, layer->num_neurons, layer->biases);
         for (int b = 0; b < batch_size; b++) {
-            memcpy(activations[0][i+1][b], pre_activation[b], layer->num_neurons * sizeof(float)); // Copy pre-activation
+            memcpy(activations[0][i+1][b], pre_activation[b], layer->num_neurons * sizeof(float));
         }
         matrix_activation(pre_activation, batch_size, layer->num_neurons, layer->activation);
         for (int b = 0; b < batch_size; b++) {
-            memcpy(activations[1][i+1][b], pre_activation[b], layer->num_neurons * sizeof(float)); // Copy post-activation
+            memcpy(activations[1][i+1][b], pre_activation[b], layer->num_neurons * sizeof(float));
         }
     }
 
@@ -114,7 +92,7 @@ void calculate_gradient_and_update(MLP *mlp, float **deltas, float **prev_activa
     int prev_num_neurons = mlp->layers[layer_idx]->prev_num_neurons;
 
     float **prev_activations_T = transpose(prev_activations, batch_size, prev_num_neurons);
-    float **grad_weights = gemm(prev_activations_T, deltas, num_neurons, prev_num_neurons, batch_size);
+    float **grad_weights = gemm(prev_activations_T, deltas, prev_num_neurons, num_neurons, batch_size);
 
     float *grad_biases = malloc(num_neurons * sizeof(float));
     for (int i = 0; i < num_neurons; i++) {
@@ -124,70 +102,16 @@ void calculate_gradient_and_update(MLP *mlp, float **deltas, float **prev_activa
         }
     }
 
-
-    float max_grad = 1.0;
-    float max_bias = 1.0;
     for (int i = 0; i < num_neurons; i++) {
         for (int j = 0; j < prev_num_neurons; j++) {
-            if (grad_weights[i][j] > max_grad) {
-                grad_weights[i][j] = max_grad;
-            } else if (grad_weights[i][j] < -max_grad) {
-                grad_weights[i][j] = -max_grad;
-            }
+            mlp->layers[layer_idx]->weights[i][j] -= mlp->learning_rate * grad_weights[j][i] / (float)batch_size;
         }
-        if (grad_biases[i] > max_bias) {
-            grad_biases[i] = max_bias;
-        } else if (grad_biases[i] < -max_bias) {
-            grad_biases[i] = -max_bias;
-        }
-    }
-
-    for (int i = 0; i < num_neurons; i++) {
-        for (int j = 0; j < prev_num_neurons; j++) {
-            mlp->layers[layer_idx]->weights[i][j] -= mlp->learning_rate * grad_weights[i][j];
-        }
-        mlp->layers[layer_idx]->biases[i] -= mlp->learning_rate * grad_biases[i];
+        mlp->layers[layer_idx]->biases[i] -= mlp->learning_rate * grad_biases[i] / (float)batch_size;
     }
 
     free_matrix(grad_weights, num_neurons);
     free(grad_biases);
 }
-
-/*
-void batch_backward(MLP *mlp, float **inputs, float **targets, int batch_size) {
-    float ***activations = batch_forward(mlp, inputs, batch_size);
-    float **deltas = NULL;
-    for (int layer_idx = mlp->num_layers - 1; layer_idx >= 0; layer_idx--) {
-        Layer *layer = mlp->layers[layer_idx];
-        int num_neurons = layer->num_neurons;
-
-        float **new_deltas = allocate_matrix(batch_size, num_neurons);
-        if (layer_idx == mlp->num_layers - 1) {
-            mlp->loss_prime(activations[mlp->num_layers], targets, new_deltas, batch_size, num_neurons);
-        } else {
-            float **weights_T = transpose(layer->weights, num_neurons, layer->prev_num_neurons);
-            float **propagated_deltas = gemm(new_deltas, weights_T, batch_size, layer->prev_num_neurons, num_neurons);
-
-            for (int i = 0; i < batch_size; i++) {
-                layer->activation_prime(activations[layer_idx][i], propagated_deltas[i], num_neurons);
-            }
-
-            free_matrix(weights_T, num_neurons);
-        }
-        if (deltas != NULL) free_matrix(deltas, batch_size);
-        deltas = new_deltas;
-
-        float **prev_activations = activations[layer_idx];
-        calculate_gradient_and_update(mlp, deltas, prev_activations, batch_size, layer_idx);
-    }
-
-    for (int i = 0; i <= mlp->num_layers; i++) {
-        free_matrix(activations[i], batch_size);
-    }
-    free(activations);
-    free_matrix(deltas, batch_size);
-}
-*/
 
 void batch_backward(MLP *mlp, float **inputs, float **targets, int batch_size) {
     float ****activations = batch_forward(mlp, inputs, batch_size);
@@ -195,28 +119,23 @@ void batch_backward(MLP *mlp, float **inputs, float **targets, int batch_size) {
 
     for (int layer_idx = mlp->num_layers - 1; layer_idx >= 0; layer_idx--) {
         Layer *layer = mlp->layers[layer_idx];
-        int num_neurons = layer->num_neurons;
-
-        float **new_deltas = allocate_matrix(batch_size, num_neurons);
 
         if (layer_idx == mlp->num_layers - 1) {
-            mlp->loss_prime(activations[1][mlp->num_layers], targets, new_deltas, batch_size, num_neurons);
+            deltas = allocate_matrix(batch_size, layer->num_neurons);
+            mlp->loss_prime(activations[1][mlp->num_layers], targets, deltas, batch_size, layer->num_neurons);
         } else {
-            float **weights_T = transpose(layer->weights, num_neurons, layer->prev_num_neurons);
-            float **propagated_deltas = gemm(new_deltas, weights_T, batch_size, layer->prev_num_neurons, num_neurons);
-
+            float **weights_T = transpose(layer->weights, layer->num_neurons, layer->prev_num_neurons);
+            float **propagated_deltas = gemm(deltas, weights_T, batch_size, layer->prev_num_neurons, layer->num_neurons);
             for (int i = 0; i < batch_size; i++) {
                 layer->activation_prime(activations[0][layer_idx+1][i], propagated_deltas[i], layer->prev_num_neurons);
             }
-            deltas = propagated_deltas;
 
+            free_matrix(deltas, batch_size);
             free_matrix(weights_T, layer->prev_num_neurons);
+            deltas = propagated_deltas;
         }
-        if (deltas != NULL) free_matrix(deltas, batch_size);
-        deltas = new_deltas;
 
-        float **prev_post_activations = activations[1][layer_idx];
-        calculate_gradient_and_update(mlp, deltas, prev_post_activations, batch_size, layer_idx);
+        calculate_gradient_and_update(mlp, deltas, activations[1][layer_idx], batch_size, layer_idx);
     }
 
     for (int i = 0; i <= mlp->num_layers; i++) {
@@ -353,17 +272,19 @@ void check_nan(MLP *mlp) {
         for (int j = 0; j < layer->num_neurons; j++) {
             for (int k = 0; k < layer->prev_num_neurons; k++) {
                 if (isnan(layer->weights[j][k])) {
-                    printf("i = %d, j = %d, k = %d, weights = %f\n", i, j, k, layer->weights[j][k]);
+                    printf("NaN at layer %d, neuron %d, weight %d = %f\n", i, j, k, layer->weights[j][k]);
                     nan = 1;
                 }
             }
             if (isnan(layer->biases[j])) {
+                printf("NaN at layer %d, neuron %d, bias = %f\n", i, j, layer->biases[j]);
                 nan = 1;
             }
         }
     }
     if (nan) {
         //print_mlp(mlp);
+        printf("Exiting due to NaN\n");
         exit(1);
     }
 }

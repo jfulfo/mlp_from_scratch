@@ -65,7 +65,7 @@ int main() {
     void (*activations[])(float*, float*, size_t) = {relu_vector, relu_vector, softmax};
     void (*activation_primes[])(float*, float*, size_t) = {relu_prime_vector, relu_prime_vector, softmax_prime};
 
-    MLP *mlp = mlp_init(num_layers, num_neurons, activations, activation_primes, cross_entropy, softmax_ce_loss_prime, 0.01, 784);
+    MLP *mlp = mlp_init(num_layers, num_neurons, activations, activation_primes, cross_entropy, softmax_ce_loss_prime, 0.05, 784);
 
     printf("Training...\n");
     int num_epochs = 10;
