@@ -42,7 +42,7 @@ fn main() {
     // create the MLP
     let learning_rate = 0.005;
     let initializer = initializer::HeInitializer::<f64>::new();
-    let mut mnist_mlp = MultiLayerPerceptron::<f64>::new(CrossEntropyLoss::new(), learning_rate);
+    let mut mnist_mlp = MultiLayerPerceptron::<f64>::new(CrossEntropyLoss::new());
     mnist_mlp.add_layer(DenseLayer::new(784, 128, &initializer, ReLU::<f64>::new()));
     mnist_mlp.add_layer(DenseLayer::new(128, 64, &initializer, ReLU::<f64>::new()));
     mnist_mlp.add_layer(DenseLayer::new(64, 32, &initializer, ReLU::<f64>::new()));

@@ -13,15 +13,13 @@ pub trait MLP<T: Real> {
 pub struct MultiLayerPerceptron<T: Real> {
     pub layers: Vec<DenseLayer<T>>,
     pub loss: Box<dyn LossFunction<T>>,
-    pub learning_rate: T,
 }
 
 impl<T: Real> MultiLayerPerceptron<T> {
-    pub fn new(loss: impl LossFunction<T> + 'static, learning_rate: T) -> Self {
+    pub fn new(loss: impl LossFunction<T> + 'static) -> Self {
         MultiLayerPerceptron {
             layers: Vec::new(),
             loss: Box::new(loss),
-            learning_rate,
         }
     }
 

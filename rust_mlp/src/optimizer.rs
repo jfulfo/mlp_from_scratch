@@ -79,9 +79,9 @@ impl<T: Real + std::ops::SubAssign> Optimizer<T> for SimpleOptimizer<T> {
                 let forward = self.mlp.forward(&input[i]);
                 let (deltas_matrix, gradients_matrix) = self.mlp.backward(&forward, &input[i], &target[i]);
                 self.optimize(&deltas_matrix, &gradients_matrix);
-                self.mlp.learning_rate = self.mlp.learning_rate * T::from(0.98).unwrap();
                 print_progress(epoch, i, input.len());
             }
+            self.learning_rate = self.learning_rate * T::from(0.95).unwrap();
             self.test(validation, validation_targets);
         }
     }
