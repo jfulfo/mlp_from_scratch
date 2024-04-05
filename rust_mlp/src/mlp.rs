@@ -30,7 +30,7 @@ impl<T: Real> MultiLayerPerceptron<T> {
     }
 }
 
-impl<T: Real + std::fmt::Debug> MLP<T> for MultiLayerPerceptron<T> {
+impl<T: Real> MLP<T> for MultiLayerPerceptron<T> {
     fn forward(&self, input: &Vec<T>) -> Vec<Vec<T>> {
         let mut layer_outputs: Vec<Vec<T>> = Vec::new();
         let mut current_input = input.clone();

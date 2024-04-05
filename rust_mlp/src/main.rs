@@ -8,7 +8,7 @@ mod gemm;
 use optimizer::{SimpleOptimizer, Optimizer};
 use layer::{ReLU, Softmax, DenseLayer};
 use loss::CrossEntropyLoss;
-use mlp::{MultiLayerPerceptron};
+use mlp::MultiLayerPerceptron;
 use csv;
 
 
@@ -45,10 +45,11 @@ fn main() {
     let mut mnist_mlp = MultiLayerPerceptron::<f64>::new(CrossEntropyLoss::new(), learning_rate);
     mnist_mlp.add_layer(DenseLayer::new(784, 128, &initializer, ReLU::<f64>::new()));
     mnist_mlp.add_layer(DenseLayer::new(128, 64, &initializer, ReLU::<f64>::new()));
-    mnist_mlp.add_layer(DenseLayer::new(64, 10, &initializer, Softmax::<f64>::new()));
+    mnist_mlp.add_layer(DenseLayer::new(64, 32, &initializer, ReLU::<f64>::new()));
+    mnist_mlp.add_layer(DenseLayer::new(32, 10, &initializer, Softmax::<f64>::new()));
 
     println!("Training MLP...");
-    let epochs = 2;
+    let epochs = 3;
     let mut optimizer = SimpleOptimizer::new(mnist_mlp, learning_rate);
     optimizer.train(&train_inputs, &train_targets, &validation_inputs, &validation_targets, epochs);
 

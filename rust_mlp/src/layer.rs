@@ -1,5 +1,5 @@
 use crate::initializer::Initializer;
-use crate::gemm::{matrix_vector_mul, matrix_matrix_mul, matrix_transpose};
+use crate::gemm::*;
 use std::marker::PhantomData;
 use num_traits::real::Real;
 
@@ -90,7 +90,7 @@ impl<T: Real> DenseLayer<T> {
     }
 }
 
-impl<T: Real + std::fmt::Debug> Layer<T> for DenseLayer<T> {
+impl<T: Real> Layer<T> for DenseLayer<T> {
     fn forward(&self, input: &Vec<T>) -> Vec<T> {
         // compute weighted sum of inputs
         let output = matrix_vector_mul(&self.weights, &input);

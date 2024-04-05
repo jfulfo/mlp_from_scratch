@@ -48,7 +48,7 @@ impl<T: Real> SimpleOptimizer<T> {
     }
 }
 
-impl<T: Real + std::ops::SubAssign + std::fmt::Debug> Optimizer<T> for SimpleOptimizer<T> {
+impl<T: Real + std::ops::SubAssign> Optimizer<T> for SimpleOptimizer<T> {
     fn optimize(&mut self, deltas_matrix: &Vec<Vec<T>>, gradients_matrix: &Vec<Vec<Vec<T>>>) {
         for i in 0..self.mlp.layers.len() {
             for j in 0..self.mlp.layers[i].weights.len() {
@@ -61,15 +61,6 @@ impl<T: Real + std::ops::SubAssign + std::fmt::Debug> Optimizer<T> for SimpleOpt
     }
 
     fn test(&self, input: &Vec<Vec<T>>, target: &Vec<Vec<T>>) {
-        /* 
-        let mut total_loss = T::zero();
-        for i in 0..input.len() {
-            let forward = self.mlp.forward(input[i].clone());
-            let loss = self.mlp.loss.loss(forward[forward.len() - 1].clone(), target[i].clone());
-            total_loss = total_loss + loss;
-        }
-        println!("Validation loss: {:?}", total_loss / T::from(input.len()).unwrap());
-        */
         let mut correct = 0;
         for i in 0..input.len() {
             let forward = self.mlp.forward(&input[i]);
@@ -96,6 +87,7 @@ impl<T: Real + std::ops::SubAssign + std::fmt::Debug> Optimizer<T> for SimpleOpt
     }
 }
 
+/*
 pub struct AdamOptimizer<T: Real> {
     mlp: MultiLayerPerceptron<T>,
     learning_rate: T,
@@ -138,6 +130,7 @@ impl<T: Real> Optimizer<T> for AdamOptimizer<T> {
         todo!();
     }
     fn train(&mut self, input: &Vec<Vec<T>>, target: &Vec<Vec<T>>, validation: &Vec<Vec<T>>, validation_targets: &Vec<Vec<T>>, epochs: usize) {
-        todo!(); 
+        todo!();
     }
 }
+*/
