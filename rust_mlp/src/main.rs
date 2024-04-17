@@ -13,14 +13,14 @@ use csv;
 
 
 // first column is the target, the rest are the input
-fn read_mnist_csv(file_path: &str) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
-    let mut rdr = csv::Reader::from_path(file_path).unwrap();
+fn read_mnist_csv(file_path: &str) -> (Vec<Vec<f32>>, Vec<Vec<f32>>) {
+    let mut rdr = csv::Reader::from_path(file_path).expect("Error reading file");
     let mut inputs = Vec::new();
     let mut targets = Vec::new();
     for result in rdr.records() {
         let record = result.unwrap();
-        let target = record[0].parse::<f64>().unwrap();
-        let input: Vec<f64> = record.iter().skip(1).map(|x| x.parse::<f64>().unwrap() / 255.0).collect();
+        let target = record[0].parse::<f32>().unwrap();
+        let input: Vec<f32> = record.iter().skip(1).map(|x| x.parse::<f32>().unwrap() / 255.0).collect();
         inputs.push(input);
         targets.push((0..10).map(|x| if x == target as usize { 1.0 } else { 0.0 }).collect());
     }
@@ -41,12 +41,12 @@ fn main() {
 
     // create the MLP
     let learning_rate = 0.005;
-    let initializer = initializer::HeInitializer::<f64>::new();
-    let mut mnist_mlp = MultiLayerPerceptron::<f64>::new(CrossEntropyLoss::new());
-    mnist_mlp.add_layer(DenseLayer::new(784, 128, &initializer, ReLU::<f64>::new()));
-    mnist_mlp.add_layer(DenseLayer::new(128, 64, &initializer, ReLU::<f64>::new()));
-    mnist_mlp.add_layer(DenseLayer::new(64, 32, &initializer, ReLU::<f64>::new()));
-    mnist_mlp.add_layer(DenseLayer::new(32, 10, &initializer, Softmax::<f64>::new()));
+    let initializer = initializer::HeInitializer::<f32>::new();
+    let mut mnist_mlp = MultiLayerPerceptron::<f32>::new(CrossEntropyLoss::new());
+    mnist_mlp.add_layer(DenseLayer::new(784, 128, &initializer, ReLU::<f32>::new()));
+    mnist_mlp.add_layer(DenseLayer::new(128, 64, &initializer, ReLU::<f32>::new()));
+    mnist_mlp.add_layer(DenseLayer::new(64, 32, &initializer, ReLU::<f32>::new()));
+    mnist_mlp.add_layer(DenseLayer::new(32, 10, &initializer, Softmax::<f32>::new()));
 
     println!("Training MLP...");
     let epochs = 3;
