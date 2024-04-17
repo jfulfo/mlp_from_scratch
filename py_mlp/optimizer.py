@@ -25,7 +25,7 @@ class StochasticGradientDescent(Optimizer):
         self.mlp = mlp
         self.learning_rate = learning_rate
 
-    def train(self, inputs: np.ndarray, targets: np.ndarray, validation_split: float, epochs: int) -> float:
+    def train(self, inputs: np.ndarray, targets: np.ndarray, validation_split: float, epochs: int, learning_rate_decay: float = 0.95) -> float:
         validation_inputs = inputs[:int(len(inputs) * validation_split)]
         validation_outputs = targets[:int(len(targets) * validation_split)]
         inputs = inputs[int(len(inputs) * validation_split):]
@@ -42,8 +42,8 @@ class StochasticGradientDescent(Optimizer):
                         self.mlp.layers[i].biases[j] -= self.learning_rate * deltas[i][j]
                 count += 1
                 self.print_progress(epoch, count, len(inputs))
-            self.test(validation_inputs, validation_outputs)
-            self.learning_rate *= 0.95
+            if validation_split != 0.0: self.test(validation_inputs, validation_outputs)
+            self.learning_rate *= learning_rate_decay
         
 
 class Adam(Optimizer):
