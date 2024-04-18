@@ -19,11 +19,15 @@ class Optimizer(ABC):
 
 
 class StochasticGradientDescent(Optimizer):
+    mlp: MultiLayerPerceptron
     learning_rate: float
 
     def __init__(self, mlp: MultiLayerPerceptron, learning_rate: float):
         self.mlp = mlp
         self.learning_rate = learning_rate
+
+    def shuffle(self, inputs: np.ndarray, targets: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        pass
 
     def train(self, inputs: np.ndarray, targets: np.ndarray, validation_split: float, epochs: int, learning_rate_decay: float = 0.95) -> float:
         validation_inputs = inputs[:int(len(inputs) * validation_split)]

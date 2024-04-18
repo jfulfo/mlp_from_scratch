@@ -2,3 +2,8 @@ mnist_train.csv
 mnist_test.csv
 py_mlp/__pycache__/
 rust_mlp/target/
+paper.aux
+paper.log
+paper.fls
+paper.fdb_latexmk
+paper.synctex.gz
