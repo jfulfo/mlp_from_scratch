@@ -3,6 +3,7 @@
 \usepackage{amsmath, amssymb, amsthm}
 \usepackage[margin=1in]{geometry}
 \usepackage{graphicx}
+\usepackage{comment}
 
 % Does it learn? Is it efficient? 
 % Discuss possible improvements and possible issues as well as the technical solutions you came up with.
@@ -23,6 +24,12 @@ We have two implementations, one in Python and one in Rust.
 \subsection*{Design}
 
 Our program is designed to be similar to TensorFlow's Keras API, albeit with much less features and flexibility.
+We have abstractions for activations, initializers, layers, losses, MLPs, and optimizers.
+It should be noted that we do not have a separate class for neurons, as we use matrices of weights and vectors of biases in our layers.
+The user is intended to create an MLP by adding layers to it, and then train the MLP using an optimizer.
+
+% We need this to be shorter
+\begin{comment}
 Here is a brief overview of the abstractions we use:
 \begin{itemize}
     \item \texttt{Activation}: We have an abstract class for activation functions.
@@ -40,6 +47,7 @@ Here is a brief overview of the abstractions we use:
     The optimizer has a learning rate and an MLP.
     Per our API, it is the optimizer's responsibility to call the forward and backward passes of the MLP.
 \end{itemize}
+\end{comment}
 
 \subsection*{Demonstration}
 
